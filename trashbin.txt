@@ -1,0 +1,193 @@
+https://www.canva.com/design/DAGtaxF7hko/9R0SBU_psiao4WpUVv2MRw/edit?utm_content=DAGtaxF7hko&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+
+Content
+Smart Dustbin Project 
+Page 1: •project name.                     •School name. •project pic. • student name
+Page 2: Introduction
+
+In today’s modern era, cleanliness and hygiene have become major concerns in urban areas. A common problem we face is the overflowing of public dustbins, which leads to health issues and unhygienic surroundings. To tackle this issue, a smart dustbin can be created using the ESP8266 Wi-Fi module, two ultrasonic sensors, a servo motor, and jumper wires. This dustbin can automatically detect when it is full and close its lid to prevent overfilling. The ESP8266 connects the dustbin to the internet and allows real-time monitoring via a web server. The web server can be accessed from a central control room to monitor multiple dustbins in different locations. It also shows the current fill level of each dustbin.
+
+Page 3: Problem of Overfilled Dustbins and Diseases Caused
+
+Overfilled dustbins are a major concern in both rural and urban areas. When garbage spills out of dustbins, it attracts insects, rodents, and stray animals, leading to the spread of diseases. The most common diseases caused by overflowing garbage include:
+
+Diarrhea
+
+Dengue and malaria (due to mosquitoes breeding in stagnant water around waste)
+
+Typhoid
+
+Skin infections
+
+Respiratory problems due to rotting waste and bad odors
+
+
+Moreover, such conditions create an unpleasant environment and lower the quality of life. Hence, it is necessary to develop smart solutions to prevent dustbins from getting overfilled.
+
+Page 4: Materials Required
+
+To make the smart dustbin, the following components are needed:
+
+1. ESP8266 Wi-Fi Module – For connecting the dustbin to the internet and sending data to a web server.
+
+
+2. Two Ultrasonic Sensors – One sensor is placed at the top to measure garbage level, and the other detects the presence of a person near the dustbin.
+
+
+3. Servo Motor – To open and close the lid of the dustbin.
+
+
+4. Jumper Wires – For connecting the components on the breadboard or PCB.
+
+
+
+Other supportive materials: Breadboard, 5V power source, dustbin container, hot glue gun, etc.
+
+Page 5: for project photo 
+
+Page 6: How to Make It
+
+1. Fixing Components: Attach one ultrasonic sensor inside the dustbin near the lid to measure the level of garbage. Fix the second ultrasonic sensor on the outside front face of the bin to detect hand presence.
+
+
+2. Connecting the Circuit:
+
+Connect both ultrasonic sensors to the ESP8266 with jumper wires.
+
+Connect the servo motor to one of the PWM pins of ESP8266.
+
+Power the ESP8266 module using a 5V power source.
+
+
+
+3. Programming the ESP8266:
+
+Upload the code using Arduino IDE that reads the distance from the sensors and operates the servo motor accordingly.
+
+The code also publishes the garbage level to Adafruit IO server.
+
+
+
+
+#include <ESP8266WiFi.h> 
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
+#include <Servo.h>
+
+#define DUSTBIN_HEIGHT_CM 23
+int trigPinGarbage = D0;
+int echoPinGarbage = D1;
+int trigPinPerson = D5;
+int echoPinPerson = D6;
+int servoPin = D4;
+int garbageLevelThreshold = 18;
+
+#define WLAN_SSID       "homeiot"
+#define WLAN_PASS       "homeiot123"
+#define AIO_SERVER      "io.adafruit.com"
+#define AIO_SERVERPORT  1883
+#define AIO_USERNAME  "dustbiniot00"
+#define AIO_KEY       "aio_GXwY05Eg7YzficbYSitpmHTe6JWs"
+
+Servo myservo;
+WiFiClient client;
+Adafruit_MQTT_Client mqtt(&client, AIO_SERVER, AIO_SERVERPORT, AIO_USERNAME, AIO_KEY);
+Adafruit_MQTT_Publish garbage_level = Adafruit_MQTT_Publish(&mqtt, AIO_USERNAME "/feeds/garbage-level");
+
+void MQTT_connect();
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(trigPinGarbage, OUTPUT);
+  pinMode(echoPinGarbage, INPUT);
+  pinMode(trigPinPerson, OUTPUT);
+  pinMode(echoPinPerson, INPUT);
+  myservo.attach(servoPin);
+
+  WiFi.begin(WLAN_SSID, WLAN_PASS);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("WiFi connected");
+}
+
+void loop() {
+  long duration, personDuration;
+  int garbageLevel, personDistance;
+
+  digitalWrite(trigPinGarbage, LOW);
+  delayMicroseconds(5);
+  digitalWrite(trigPinGarbage, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPinGarbage, LOW);
+  duration = pulseIn(echoPinGarbage, HIGH);
+  garbageLevel = DUSTBIN_HEIGHT_CM - (duration / 2) / 29.1;
+
+  digitalWrite(trigPinPerson, LOW);
+  delayMicroseconds(5);
+  digitalWrite(trigPinPerson, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPinPerson, LOW);
+  personDuration = pulseIn(echoPinPerson, HIGH);
+  personDistance = (personDuration / 2) / 29.1;
+
+  if (garbage_level.publish(garbageLevel)) {
+    Serial.println("Garbage level data published successfully!");
+  }
+
+  if (personDistance < 20 && garbageLevel < garbageLevelThreshold) {
+    myservo.write(160);
+  } else {
+    myservo.write(0);
+  }
+
+  MQTT_connect();
+  delay(2000);
+}
+
+void MQTT_connect() {
+  int8_t ret;
+  if (mqtt.connected()) return;
+  uint8_t retries = 3;
+  while ((ret = mqtt.connect()) != 0) {
+    mqtt.disconnect();
+    delay(2000);
+    retries--;
+    if (retries == 0) while (1);
+  }
+}
+
+Page 7: Working of the Smart Dustbin
+
+1. Idle State: The bin stays closed and continuously monitors garbage level and user presence.
+
+
+2. Hand Detection: When a person comes within 20 cm of the bin and the garbage level is below threshold, the lid opens automatically.
+
+
+3. Auto-close: The lid remains open briefly, then closes.
+
+
+4. Full Bin State: When the garbage reaches the preset level, the lid remains closed to prevent further use.
+
+
+5. Data Monitoring: The fill level data is continuously published to Adafruit IO and can be seen on a dashboard.
+
+
+
+Page 8: Benefits of the Smart Dustbin
+
+Prevents Overflow: Closes automatically when full.
+
+Remote Monitoring: Supervisors can track fill levels in real-time.
+
+Improves Hygiene: Reduces bad smell, insect breeding, and disease risks.
+
+Touchless Use: Opens without physical contact.
+
+Smart Alerts: Helps waste management authorities respond faster.
+
+Cost and Time Efficient: Avoids unnecessary rounds of garbage collection trucks.
+
+Page 9: thank you
